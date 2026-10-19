@@ -65,6 +65,13 @@
   },
   {
     "surface": "search",
+    "backend": "deepseek",
+    "status": "no_key",
+    "detail": "API key not set (get one at https://platform.deepseek.com then: ketch config set deepseek_api_key \u003ckey\u003e)",
+    "latency_ms": 0
+  },
+  {
+    "surface": "search",
     "backend": "degoog",
     "status": "misconfigured",
     "detail": "degoog_url not set (ketch config set degoog_url \u003curl\u003e)",

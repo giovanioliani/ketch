@@ -252,3 +252,26 @@ func TestLoadEnvExtractModeInvalidIsLoud(t *testing.T) {
 		t.Fatalf("expected loud unknown-mode error, got: %v", err)
 	}
 }
+
+func TestLoadEnvFetchBackend(t *testing.T) {
+	clearKetchEnv(t)
+	testutil.SetIsolatedConfigHome(t)
+	t.Setenv("KETCH_FETCH_BACKEND", "deepseek")
+
+	res, err := Load()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if res.Config.FetchBackend != "deepseek" {
+		t.Fatalf("FetchBackend = %q, want deepseek", res.Config.FetchBackend)
+	}
+	found := false
+	for _, o := range res.Overrides {
+		if o.Key == "fetch_backend" && o.Var == "KETCH_FETCH_BACKEND" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("fetch_backend override not recorded: %+v", res.Overrides)
+	}
+}

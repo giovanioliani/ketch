@@ -30,10 +30,14 @@ type Provider struct {
 	// exists for: it answers `-b searxng` on its built-in localhost default,
 	// but must not join a chain until an operator has pointed it somewhere.
 	AutoEligible func(*config.Config) bool
-	Usable       func(*config.Config) bool
-	Settings     []config.Setting
-	New          func(*config.Config) (Searcher, error)
-	Probe        func(context.Context, *http.Client, *config.Config) (health.Status, string)
+	// Fetches marks a provider whose constructed Searcher also implements
+	// PageFetcher, so it is a valid fetch_backend value for the scrape
+	// surface.
+	Fetches  bool
+	Usable   func(*config.Config) bool
+	Settings []config.Setting
+	New      func(*config.Config) (Searcher, error)
+	Probe    func(context.Context, *http.Client, *config.Config) (health.Status, string)
 }
 
 // Configured reports explicitly set credentials for this provider, which is
@@ -56,10 +60,11 @@ func (p Provider) InAuto(cfg *config.Config) bool {
 	return p.AutoEligible == nil || p.AutoEligible(cfg)
 }
 
-// Required reports whether a failing health check must fail doctor. Selection
-// and explicitly configured credentials gate health independently of usability.
+// Required reports whether a failing health check must fail doctor. Selection,
+// explicitly configured credentials, and selection as the fetch backend gate
+// health independently of usability.
 func (p Provider) Required(cfg *config.Config) bool {
-	return cfg.Backend == p.ID || p.Configured(cfg)
+	return cfg.Backend == p.ID || p.Configured(cfg) || (p.Fetches && EffectiveFetchBackend(cfg) == p.ID)
 }
 
 var providers = []Provider{
@@ -73,6 +78,7 @@ var providers = []Provider{
 	tinyfishProvider(),
 	parallelProvider(),
 	serpbaseProvider(),
+	deepseekProvider(),
 	degoogProvider(),
 	serplyProvider(),
 	youcomProvider(),

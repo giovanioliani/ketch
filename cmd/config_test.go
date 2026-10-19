@@ -13,6 +13,7 @@ import (
 	"github.com/1broseidon/ketch/config"
 	"github.com/1broseidon/ketch/internal/testutil"
 	"github.com/1broseidon/ketch/scrape"
+	"github.com/1broseidon/ketch/search"
 )
 
 func TestApplyConfigSetAPIKeysRoundTrip(t *testing.T) {
@@ -585,6 +586,11 @@ func TestApplyConfigSetBackendValidatesAgainstRegistry(t *testing.T) {
 		{"docs_backend", "local", ""}, // hidden but registered: the command accepts it, so config set must too
 		{"docs_backend", "ctx7", `unknown docs backend "ctx7"`},
 		{"docs_backend", "", "docs_backend cannot be empty"},
+		{"fetch_backend", "deepseek", ""},
+		{"fetch_backend", "http", ""},
+		{"fetch_backend", " HTTP ", ""}, // normalized to http
+		{"fetch_backend", "", ""},       // restores the default
+		{"fetch_backend", "nope", `unknown fetch backend "nope"`},
 	} {
 		c := config.Defaults()
 		err := applyConfigSet(&c, tc.key, tc.value)
@@ -593,8 +599,15 @@ func TestApplyConfigSetBackendValidatesAgainstRegistry(t *testing.T) {
 				t.Errorf("%s=%q: unexpected error %v", tc.key, tc.value, err)
 				continue
 			}
-			got := map[string]string{"backend": c.Backend, "code_backend": c.CodeBackend, "docs_backend": c.DocsBackend}[tc.key]
-			if want := strings.TrimSpace(tc.value); got != want {
+			got := map[string]string{"backend": c.Backend, "code_backend": c.CodeBackend, "docs_backend": c.DocsBackend, "fetch_backend": c.FetchBackend}[tc.key]
+			want := strings.TrimSpace(tc.value)
+			if tc.key == "fetch_backend" {
+				want = strings.ToLower(want)
+				if want == "" {
+					want = search.FetchBackendHTTP
+				}
+			}
+			if got != want {
 				t.Errorf("%s=%q: stored %q, want %q", tc.key, tc.value, got, want)
 			}
 			continue

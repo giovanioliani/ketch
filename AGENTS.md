@@ -23,7 +23,7 @@ cmd/
   mcp.go                     MCP command: `mcp serve` runs the MCP server over stdio
   proc_unix.go               Unix process management (detach, signals)
   proc_windows.go            Windows process management stub
-search/                      Searcher interface + Brave/DDG/SearXNG/EXA/Firecrawl/Keenable/Tavily/TinyFish/Parallel/SerpBase/Degoog/Serply/Youcom backends; NewFromConfig resolves the ordered provider registry for cmd/ and mcp/. auto.go is the default `auto` backend (keyless fallback chain, AutoRank-ordered), multi.go adds federated --multi search (RRF fusion, NewMultiFromConfig), random.go shuffled fallback, canonical.go the URL dedup keys
+search/                      Searcher interface + Brave/DDG/SearXNG/EXA/Firecrawl/Keenable/Tavily/TinyFish/Parallel/SerpBase/DeepSeek/Degoog/Serply/Youcom backends; NewFromConfig resolves the ordered provider registry for cmd/ and mcp/. auto.go is the default `auto` backend (keyless fallback chain, AutoRank-ordered), multi.go adds federated --multi search (RRF fusion, NewMultiFromConfig), random.go shuffled fallback, canonical.go the URL dedup keys, fetch.go + the PageFetcher a provider implements select the scrape fetch_backend
 code/                        code.Searcher interface + GrepApp/Sourcegraph/GitHub backends; NewFromConfig resolves the ordered provider registry. Query.Repo (owner/name, filter.go) is exact on every backend: each translates it and narrows a looser native filter itself
 docs/                        docs.Searcher interface + Context7 backend (FTS5 local is an unimplemented stub); NewFromConfig resolves the ordered provider registry
 mcp/                         MCP server (search/code/docs/scrape/crawl/tag tools; the mcp_tools config key is an allowlist over the published set) over the go-sdk mcp package; Server struct holds the shared scraper + cache, tools call the same NewFromConfig constructors as the CLI
@@ -92,6 +92,7 @@ ketch search "query" -b tavily              # use Tavily search API (keyed; basi
 ketch search "query" -b tinyfish            # use TinyFish Search API (keyed; free tier)
 ketch search "query" -b parallel            # use Parallel Search MCP (keyless)
 ketch search "query" -b serpbase            # use SerpBase Google Search API (keyed)
+ketch search "query" -b deepseek            # use DeepSeek Search API (keyed)
 ketch search "query" -b degoog              # use a self-hosted Degoog instance (degoog_url)
 ketch search "query" -b serply              # use Serply's Google Search API (keyed)
 ketch search "query" -b youcom              # use You.com web search (keyless by default)
@@ -134,7 +135,7 @@ ketch mcp serve                             # run as an MCP server over stdio (s
 | Flag | Scope | Default | Description |
 |------|-------|---------|-------------|
 | --json | global | false | JSON output |
-| --backend, -b | search | auto | Search backend (auto/brave/ddg/searxng/exa/firecrawl/keenable/tavily/tinyfish/parallel/serpbase/degoog/serply/youcom); `auto` is a fallback chain, not a provider |
+| --backend, -b | search | auto | Search backend (auto/brave/ddg/searxng/exa/firecrawl/keenable/tavily/tinyfish/parallel/serpbase/deepseek/degoog/serply/youcom); `auto` is a fallback chain, not a provider |
 | --multi | search | — | Federated search: comma list or bare/`=all` for every usable backend; RRF-fused, dedup'd, mutually exclusive with --backend (use the `=` form for a list) |
 | --limit, -l | search | 5 | Max results |
 | --scrape | search | false | Fetch full content |
@@ -195,6 +196,11 @@ fields out of shared consumers.
   (SearXNG's localhost default is the one case).
 - `Usable` checks configuration without network I/O. `Build` checks it before
   calling `New`.
+- Set `Fetches` and implement `PageFetcher` (`FetchPage`) when the provider's
+  API returns page markdown: the provider then becomes a `fetch_backend` value
+  for `scrape` and `search --scrape`. A `fetch_backend` makes its provider
+  `Required` for doctor. Raw, selector, forced-browser, and crawl paths keep
+  using HTTP because they need the page body.
 - `New` only constructs a client and must accept empty credentials. `Probe`
   performs the health check; construction must not contact the service.
 - Import `internal/configbase` as `config` to avoid an import cycle with the
