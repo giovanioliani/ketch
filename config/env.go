@@ -94,6 +94,7 @@ func coreEnvSpecs() []envSpec {
 		stringSpec("browser", func(c *Config) *string { return &c.Browser }),
 		stringSpec("code_backend", func(c *Config) *string { return &c.CodeBackend }),
 		stringSpec("docs_backend", func(c *Config) *string { return &c.DocsBackend }),
+		stringSpec("fetch_backend", func(c *Config) *string { return &c.FetchBackend }),
 		stringSpec("cookie_file", func(c *Config) *string { return &c.CookieFile }),
 		stringSpec("user_agent", func(c *Config) *string { return &c.UserAgent }),
 		{
@@ -213,7 +214,7 @@ func ScrubbedEnviron() []string {
 
 func envSpecs() []envSpec {
 	specs := coreEnvSpecs()
-	order := map[string]int{"backend": 0, "limit": 9, "cache_ttl": 10, "browser": 11, "code_backend": 12, "docs_backend": 13, "cookie_file": 16, "user_agent": 17, "mcp_tools": 18, "external_pdf_to_md_converter_command": 19, "external_pdf_to_md_converter_timeout_sec": 20, "extract_mode": 21, "http_headers": 22}
+	order := map[string]int{"backend": 0, "limit": 9, "cache_ttl": 10, "browser": 11, "code_backend": 12, "docs_backend": 13, "fetch_backend": 14, "cookie_file": 16, "user_agent": 17, "mcp_tools": 18, "external_pdf_to_md_converter_command": 19, "external_pdf_to_md_converter_timeout_sec": 20, "extract_mode": 21, "http_headers": 22}
 	for _, setting := range ProviderSettings() {
 		if setting.ManualEnv {
 			continue

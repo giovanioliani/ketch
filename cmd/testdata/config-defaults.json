@@ -22,6 +22,7 @@
   "user_agent": "ketch/dev (+https://github.com/1broseidon/ketch)",
   "code_backend": "grepapp",
   "docs_backend": "context7",
+  "fetch_backend": "http",
   "context7_api_key_set": false,
   "sourcegraph_url": "https://sourcegraph.com",
   "github_token_source": "none",
@@ -48,6 +49,7 @@
     "tinyfish",
     "parallel",
     "serpbase",
+    "deepseek",
     "degoog",
     "serply",
     "youcom"
@@ -60,8 +62,14 @@
   "available_doc_backends": [
     "context7"
   ],
+  "available_fetch_backends": [
+    "http",
+    "deepseek"
+  ],
   "tinyfish_api_key_set": false,
   "tinyfish_api_keys_count": 0,
+  "deepseek_api_key_set": false,
+  "deepseek_api_keys_count": 0,
   "degoog_url": "",
   "serply_api_key_set": false,
   "serply_api_keys_count": 0

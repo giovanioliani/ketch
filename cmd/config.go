@@ -37,6 +37,7 @@ type configInfo struct {
 	ExtractMode                        string             `json:"extract_mode" order:"26"` // effective extraction mode: clean (default) or complete
 	CodeBackend                        string             `json:"code_backend" order:"21"`
 	DocsBackend                        string             `json:"docs_backend" order:"22"`
+	FetchBackend                       string             `json:"fetch_backend" order:"23"` // effective fetch backend: http (default) or a provider id
 	URLRewrites                        []urlrewrite.Rule  `json:"url_rewrites,omitempty" order:"27"`
 	SPAMarkers                         []string           `json:"spa_markers,omitempty" order:"28"`
 	MCPTools                           []string           `json:"mcp_tools" order:"29"` // effective set `ketch mcp serve` will publish
@@ -46,6 +47,7 @@ type configInfo struct {
 	AvailableBackends                  []string           `json:"available_backends" order:"33"`
 	AvailableCodeBackends              []string           `json:"available_code_backends" order:"34"`
 	AvailableDocBackends               []string           `json:"available_doc_backends" order:"35"`
+	AvailableFetchBackends             []string           `json:"available_fetch_backends" order:"36"`
 	ProviderFields                     []configbase.Field `json:"-"`
 	Providers                          map[string]any     `json:"-"`
 
@@ -111,6 +113,7 @@ func buildConfigInfo(c config.Config, path string) configInfo {
 		ExtractMode:                        effectiveExtractMode(c),
 		CodeBackend:                        c.CodeBackend,
 		DocsBackend:                        c.DocsBackend,
+		FetchBackend:                       search.EffectiveFetchBackend(&c),
 		URLRewrites:                        c.URLRewrites,
 		SPAMarkers:                         c.SPAMarkers,
 		MCPTools:                           effectiveMCPTools(c),
@@ -120,6 +123,7 @@ func buildConfigInfo(c config.Config, path string) configInfo {
 		AvailableBackends:                  config.SelectableBackends(),
 		AvailableCodeBackends:              config.AvailableCodeBackends(),
 		AvailableDocBackends:               config.AvailableDocBackends(),
+		AvailableFetchBackends:             search.FetchBackends(),
 	}
 
 	info.Providers = make(map[string]any)
@@ -236,6 +240,8 @@ func applyConfigSet(c *config.Config, key, value string) error {
 		return setBackend(&c.CodeBackend, "code", value, func(id string) bool { _, ok := code.Lookup(id); return ok }, config.AvailableCodeBackends())
 	case "docs_backend":
 		return setBackend(&c.DocsBackend, "docs", value, func(id string) bool { _, ok := docs.Lookup(id); return ok }, config.AvailableDocBackends())
+	case "fetch_backend":
+		return setFetchBackend(c, value)
 	case "url_rewrites":
 		return setURLRewrites(c, value)
 	case "spa_markers":
@@ -279,6 +285,22 @@ func setCacheTTL(c *config.Config, value string) error {
 		return exitErrf(ExitValidation, "cache_ttl must be a duration (e.g. 1h, 30m): %w", err)
 	}
 	c.CacheTTL = value
+	return nil
+}
+
+// setFetchBackend persists the page fetch backend: the built-in HTTP pipeline
+// (http, the default) or a provider whose API returns page markdown. An empty
+// value restores the default; the stored value is lowercased so a hand-edited
+// file and config set agree.
+func setFetchBackend(c *config.Config, value string) error {
+	backend := strings.ToLower(strings.TrimSpace(value))
+	if backend == "" {
+		backend = search.FetchBackendHTTP
+	}
+	if !search.IsFetchBackend(backend) {
+		return exitErrf(ExitValidation, "unknown fetch backend %q (valid: %s)", backend, strings.Join(search.FetchBackends(), ", "))
+	}
+	c.FetchBackend = backend
 	return nil
 }
 
@@ -486,7 +508,7 @@ func runConfigPath(_ *cobra.Command, _ []string) error {
 }
 
 func validConfigKeys() []string {
-	fields := []configbase.Field{{Name: "backend", Order: 0}, {Name: "limit", Order: 15}, {Name: "cache_ttl", Order: 16}, {Name: "browser", Order: 17}, {Name: "code_backend", Order: 18}, {Name: "docs_backend", Order: 19}, {Name: "url_rewrites", Order: 23}, {Name: "spa_markers", Order: 24}, {Name: "mcp_tools", Order: 25}, {Name: "cookie_file", Order: 26}, {Name: "user_agent", Order: 27}, {Name: "external_pdf_to_md_converter_command", Order: 28}, {Name: "external_pdf_to_md_converter_timeout_sec", Order: 29}, {Name: "extract_mode", Order: 30}, {Name: "http_headers", Order: 31}}
+	fields := []configbase.Field{{Name: "backend", Order: 0}, {Name: "limit", Order: 15}, {Name: "cache_ttl", Order: 16}, {Name: "browser", Order: 17}, {Name: "code_backend", Order: 18}, {Name: "docs_backend", Order: 19}, {Name: "fetch_backend", Order: 20}, {Name: "url_rewrites", Order: 23}, {Name: "spa_markers", Order: 24}, {Name: "mcp_tools", Order: 25}, {Name: "cookie_file", Order: 26}, {Name: "user_agent", Order: 27}, {Name: "external_pdf_to_md_converter_command", Order: 28}, {Name: "external_pdf_to_md_converter_timeout_sec", Order: 29}, {Name: "extract_mode", Order: 30}, {Name: "http_headers", Order: 31}}
 	for _, s := range config.ProviderSettings() {
 		fields = append(fields, configbase.Field{Name: s.Key, Order: s.ValidationOrder})
 		if s.Plural != "" {

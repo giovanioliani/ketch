@@ -19,3 +19,12 @@ type Result struct {
 type Searcher interface {
 	Search(ctx context.Context, query string, limit int) ([]Result, error)
 }
+
+// PageFetcher is implemented by providers that can retrieve a single page as
+// markdown through their own API. Selecting such a provider as the fetch
+// backend lets `ketch scrape` and `search --scrape` use that API instead of
+// the built-in HTTP fetch + extraction pipeline (which still handles --raw,
+// --select, --force-browser, and crawl, where raw HTML is required).
+type PageFetcher interface {
+	FetchPage(ctx context.Context, rawURL string) (title, markdown string, err error)
+}

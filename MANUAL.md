@@ -577,7 +577,8 @@ rather than averaged away.
 
 | Surface | Default | Also available |
 | --- | --- | --- |
-| `search` | `auto` | brave, ddg, searxng, exa, firecrawl, keenable, tavily, tinyfish, parallel, serpbase, degoog, serply, youcom |
+| `search` | `auto` | brave, ddg, searxng, exa, firecrawl, keenable, tavily, tinyfish, parallel, serpbase, deepseek, degoog, serply, youcom |
+| `scrape` | `http` | deepseek |
 | `code` | `grepapp` | sourcegraph, github |
 | `docs` | `context7` | — |
 
@@ -606,7 +607,26 @@ $ ketch config set serply_api_key <key>
 ```
 
 Providers accept multiple keys for rotation — `brave_api_keys` takes a list,
-and one is picked at random per request to spread rate limits.
+and one is picked at random per request to spread rate limits. DeepSeek bills
+Search and Fetch per successful request, so it is keyed rather than free.
+
+#### Fetch backends — who reads the page
+
+`scrape` and `search --scrape` fetch pages over HTTP and extract markdown
+locally by default. Setting `fetch_backend` sends them through a provider API
+instead:
+
+```console
+$ ketch config set deepseek_api_key <key>
+$ ketch config set fetch_backend deepseek   # DeepSeek Fetch API, returns markdown
+$ ketch config set fetch_backend http       # back to the built-in pipeline
+```
+
+An API fetch backend returns markdown directly, so charset decoding, JS-shell
+detection, browser rendering, `--raw`, `--select`, and PDF parsing do not
+apply: those keep using HTTP. `crawl` also keeps using HTTP, because it needs
+the page body to follow links. Pages fetched by different backends never share
+a cache entry.
 
 #### Self-hosted — Your own instance, preferred once set
 
@@ -703,6 +723,7 @@ $ ketch browser status
 - `url_rewrites` — regex rewrites applied before fetch
 - `spa_markers` — extra tokens for JS-shell detection
 - `cache_ttl` — cache lifetime
+- `fetch_backend` — `http` (default) or `deepseek`; who fetches scrape targets (see Fetch backends under Backends)
 - `user_agent` — User-Agent override for HTTP and browser fetches
 - `extract_mode` — `clean` (default) or `complete`; a non-default mode scopes cached pages, so a page cached under one mode is never reused under the other
 - `mcp_tools` — allowlist of MCP tools to publish; unset publishes all six

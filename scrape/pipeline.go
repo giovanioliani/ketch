@@ -13,6 +13,7 @@ import (
 	"github.com/1broseidon/ketch/config"
 	"github.com/1broseidon/ketch/cookies"
 	"github.com/1broseidon/ketch/extract"
+	"github.com/1broseidon/ketch/search"
 	"github.com/1broseidon/ketch/urlrewrite"
 )
 
@@ -86,6 +87,14 @@ func NewFromConfig(cfg *config.Config) (*Scraper, error) {
 		}
 		scraper.pdfExtractor = pdfExtractor
 	}
+	fetcher, err := search.NewFetcherFromConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if fetcher != nil {
+		scraper.fetcher = fetcher
+		scraper.fetchBackend = search.EffectiveFetchBackend(cfg)
+	}
 	return scraper, nil
 }
 
@@ -112,7 +121,7 @@ func (s *Scraper) CachedScrape(ctx context.Context, pc PageCache, url string) (*
 	if err := ValidateWebURL(fetchURL); err != nil {
 		return nil, err
 	}
-	key := s.CacheKey(fetchURL)
+	key := s.MarkdownCacheKey(fetchURL)
 	if pc != nil {
 		if page, source := pc.Get(key); page != nil && !CacheStaleForBrowser(source, s.HasBrowser()) {
 			return page, nil

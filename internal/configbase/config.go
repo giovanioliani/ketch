@@ -20,6 +20,7 @@ type Config struct {
 	Browser                            string            `json:"browser,omitempty" order:"17"` // "chrome", "chromium", or absolute path; empty = disabled
 	CodeBackend                        string            `json:"code_backend,omitempty" order:"18"`
 	DocsBackend                        string            `json:"docs_backend,omitempty" order:"19"`
+	FetchBackend                       string            `json:"fetch_backend,omitempty" order:"20"` // "http" (default) or a provider id whose API returns page markdown
 	URLRewrites                        []urlrewrite.Rule `json:"url_rewrites,omitempty" order:"23"`
 	SPAMarkers                         []string          `json:"spa_markers,omitempty" order:"24"`
 	MCPTools                           []string          `json:"mcp_tools,omitempty" order:"25"`   // allowlist of tools `ketch mcp serve` publishes; empty = all five
@@ -86,6 +87,11 @@ func (c Config) TavilyKeys() []string {
 // SerpBaseKeys returns an immutable copy of the effective SerpBase API key pool.
 func (c Config) SerpBaseKeys() []string {
 	return MergeKeys(c.String("serpbase_api_key"), c.Strings("serpbase_api_keys"))
+}
+
+// DeepSeekKeys returns an immutable copy of the effective DeepSeek API key pool.
+func (c Config) DeepSeekKeys() []string {
+	return MergeKeys(c.String("deepseek_api_key"), c.Strings("deepseek_api_keys"))
 }
 
 // ResolveGithubToken returns a token and the source it came from, walking the

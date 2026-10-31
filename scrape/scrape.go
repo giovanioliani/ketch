@@ -16,6 +16,7 @@ import (
 	"github.com/1broseidon/ketch/cookies"
 	"github.com/1broseidon/ketch/extract"
 	"github.com/1broseidon/ketch/httpx"
+	"github.com/1broseidon/ketch/search"
 	"github.com/1broseidon/ketch/urlrewrite"
 	"github.com/PuerkitoBio/goquery"
 )
@@ -37,6 +38,9 @@ const (
 	SourceHTTPShell = "http_shell"
 	// SourceBrowser — page was rendered via the headless browser.
 	SourceBrowser = "browser"
+	// SourceFetch — page markdown came from the configured fetch backend
+	// (a provider API such as DeepSeek Fetch) instead of the HTTP pipeline.
+	SourceFetch = "fetch"
 )
 
 // Page represents a scraped web page.
@@ -102,6 +106,13 @@ type Scraper struct {
 	// browser keeps its own User-Agent minus the HeadlessChrome token (see
 	// NewBrowserConnOptions).
 	userAgentConfigured bool
+
+	// fetcher is the provider API that supplies markdown for a configured
+	// fetch_backend (nil for the built-in HTTP pipeline). fetchBackend is its
+	// id, folded into the cache key so pages fetched by different backends
+	// never collide.
+	fetcher      search.PageFetcher
+	fetchBackend string
 }
 
 // NewWithRewriter creates a Scraper with an optional browser binary and
@@ -215,6 +226,10 @@ func (s *Scraper) browserConnOptions() []ConnOption {
 func (s *Scraper) Scrape(ctx context.Context, rawURL string) (*Page, string, error) {
 	fetchURL := s.Rewrite(rawURL)
 
+	if s.fetcher != nil {
+		return s.fetchPage(ctx, rawURL, fetchURL)
+	}
+
 	content, err := s.FetchContent(ctx, fetchURL)
 	if err != nil {
 		return nil, "", err
@@ -248,6 +263,29 @@ func (s *Scraper) Scrape(ctx context.Context, rawURL string) (*Page, string, err
 		page.FetchedURL = fetchURL
 	}
 	return page, source, nil
+}
+
+// fetchPage retrieves a page through the configured fetch backend. The
+// backend returns markdown, so extraction, charset handling, JS-shell
+// detection, and PDF parsing are all skipped: the provider did that work.
+func (s *Scraper) fetchPage(ctx context.Context, rawURL, fetchURL string) (*Page, string, error) {
+	if err := ValidateWebURL(fetchURL); err != nil {
+		return nil, "", err
+	}
+	title, markdown, err := s.fetcher.FetchPage(ctx, fetchURL)
+	if err != nil {
+		return nil, "", err
+	}
+	page := &Page{
+		URL:         rawURL,
+		Title:       title,
+		Markdown:    markdown,
+		ContentHash: ContentHash(markdown),
+	}
+	if fetchURL != rawURL {
+		page.FetchedURL = fetchURL
+	}
+	return page, SourceFetch, nil
 }
 
 // ScrapeConditional fetches a URL with conditional headers and JS detection.
@@ -444,6 +482,18 @@ func (s *Scraper) CacheKey(fetchURL string) string {
 	}
 	if mode := s.extractor.Mode(); mode != extract.ModeClean {
 		key += "\x00extract:" + string(mode)
+	}
+	return key
+}
+
+// MarkdownCacheKey is the page-cache key for a markdown scrape. A configured
+// fetch backend namespaces it: a provider's markdown is not the HTTP
+// pipeline's extraction, so the two must not share entries. Raw scrapes keep
+// the unnamespaced CacheKey because they always use HTTP.
+func (s *Scraper) MarkdownCacheKey(fetchURL string) string {
+	key := s.CacheKey(fetchURL)
+	if s.fetchBackend != "" {
+		key += "\x00fetch:" + s.fetchBackend
 	}
 	return key
 }
